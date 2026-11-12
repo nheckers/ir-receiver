@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Room Remote</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 16px;
+      font-family: -apple-system, system-ui, sans-serif;
+      background: #111; color: #eee;
+      max-width: 420px; margin-inline: auto;
+    }
+    h1 { font-size: 1.4rem; margin: 4px 0 16px; }
+    h2 { font-size: 1rem; color: #aaa; margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+    .grid { display: grid; gap: 10px; }
+    .g3 { grid-template-columns: repeat(3, 1fr); }
+    .g4 { grid-template-columns: repeat(4, 1fr); }
+    button {
+      background: #222; color: #eee; border: 1px solid #333;
+      border-radius: 12px; padding: 14px 6px; font-size: 0.95rem;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    button:active { transform: scale(0.96); background: #333; }
+    .power { background: #5a1a1a; border-color: #7a2a2a; }
+    .swatch { height: 52px; border: 2px solid #333; }
+    .red { background: #d33; } .green { background: #2b2; } .blue { background: #36f; }
+    .dpad { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 56px); }
+    .dpad button { padding: 0; font-size: 1.2rem; }
+    .ok { background: #2a3a5a; }
+    .tag { font-size: 0.75rem; color: #888; text-transform: none; letter-spacing: 0; }
+    #status {
+      position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+      background: #333; padding: 10px 16px; border-radius: 20px;
+      font-size: 0.85rem; opacity: 0; transition: opacity 0.2s;
+      white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+    }
+    #status.show { opacity: 1; }
+    #status.err { background: #7a2a2a; }
+  </style>
+</head>
+<body>
+  <h1>Room Remote</h1>
+
+  <h2>LED Strip</h2>
+  <div class="grid g3">
+    <button class="power" onclick="send('led','power')">Power</button>
+    <button onclick="send('led','reset')">Reset</button>
+    <button onclick="send('led','color_next')">Next Color</button>
+    <button class="swatch red" onclick="send('led','red')" aria-label="Red"></button>
+    <button class="swatch green" onclick="send('led','green')" aria-label="Green"></button>
+    <button class="swatch blue" onclick="send('led','blue')" aria-label="Blue"></button>
+    <button onclick="send('led','dimmer')">Dimmer</button>
+    <button onclick="send('led','brighter')">Brighter</button>
+    <button onclick="send('led','sound_mode')">Sound</button>
+    <button onclick="send('led','cycle')">Cycle</button>
+    <button onclick="send('led','cycle_light')">Cycle Light</button>
+    <button onclick="send('led','oscillation')">Oscillate</button>
+  </div>
+
+  <h2>TV <span class="tag">({{ tv_mode }})</span></h2>
+  <div class="grid g3">
+    <button class="power" onclick="send('tv','power')">Power</button>
+    <button onclick="send('tv','home')">Home</button>
+    <button onclick="send('tv','back')">Back</button>
+  </div>
+  <div class="grid dpad" style="margin-top:10px">
+    <span></span><button onclick="send('tv','up')">▲</button><span></span>
+    <button onclick="send('tv','left')">◀</button>
+    <button class="ok" onclick="send('tv','ok')">OK</button>
+    <button onclick="send('tv','right')">▶</button>
+    <span></span><button onclick="send('tv','down')">▼</button><span></span>
+  </div>
+  <div class="grid g3" style="margin-top:10px">
+    <button onclick="send('tv','rewind')">⏪</button>
+    <button onclick="send('tv','play')">⏯</button>
+    <button onclick="send('tv','skip')">⏩</button>
+  </div>
+  {% if tv_mode == "Wi-Fi" %}
+  <div class="grid g3" style="margin-top:10px">
+    <button onclick="send('tv','vol_down')">Vol −</button>
+    <button onclick="send('tv','mute')">Mute</button>
+    <button onclick="send('tv','vol_up')">Vol +</button>
+  </div>
+  {% endif %}
+
+  <div id="status"></div>
+
+  <script>
+    let timer;
+    function show(msg, isErr) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'show' + (isErr ? ' err' : '');
+      clearTimeout(timer);
+      timer = setTimeout(() => el.className = '', 1500);
+    }
+
+    async function send(device, button) {
+      try {
+        const res = await fetch(`/api/${device}/${button}`, { method: 'POST' });
+        const data = await res.json();
+        data.ok ? show('Sent: ' + data.sent) : show(data.error, true);
+      } catch (e) {
+        show('Can\'t reach the Pi', true);
+      }
+    }
+  </script>
+</body>
+</html>
