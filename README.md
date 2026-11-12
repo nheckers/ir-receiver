@@ -17,7 +17,7 @@ Capturing and decoding infrared remote signals on a Raspberry Pi using a TSOP382
 | GND | Pin 6 (GND) |
 | OUT | Pin 11 (GPIO 17) |
 
-![Wiring](images/wiring.jpg)
+![Wiring](../screenshots/4.01-no-device.png)
 
 ## Step 1: Wiring to Raspberry Pi
 
@@ -74,7 +74,7 @@ Use the following command to begin capturing signals sent to the receiver:
 sudo ir-keytable -c -p all -t
 ```
 
-![No device specified](images/4.01-no-device.png)
+![No device specified](../screenshots/4.02-device-list.png)
 
 ### Issue 1: Wrong device
 
@@ -84,7 +84,7 @@ I ran into an issue with this command because no device was specified. This lead
 sudo ir-keytable
 ```
 
-![Device list](images/4.02-device-list.png)
+![Device list](../screenshots/4.03-signals.png)
 
 I was able to run the following command afterwards to begin capturing IR signals from the remote:
 
@@ -96,7 +96,7 @@ sudo ir-keytable -s rc1 -c -p nec,rc-5,rc-6,sony -t
 
 I ran into an issue here where I was unsuccessful with getting the IR signals from the remote. It turns out I had incorrectly connected the output of the TSOP38238 to Pin 17 of the Raspberry Pi, which is a fixed 3.3V power pin, instead of Pin 11, which is GPIO 17. Running the `pinout` command shows both the physical pin numbers and GPIO (BCM) numbers.
 
-![Decoded signals](images/4.03-signals.png)
+![Decoded signals](../screenshots/4.04-raw-capture.png)
 
 ### Raw capture
 
