@@ -31,7 +31,7 @@ Capturing, decoding, and sending infrared remote signals with a Raspberry Pi. I 
 | Transistor emitter | Pin 9 (GND) |
 | 1 kOhm resistor → transistor base | Pin 12 (GPIO 18) |
 
-![Wiring](images/wiring.jpg)
+![Wiring](./screenshots/4.01-no-device.png)
 
 ## Step 1: Wiring to Raspberry Pi
 
@@ -88,7 +88,7 @@ Use the following command to begin capturing signals sent to the receiver:
 sudo ir-keytable -c -p all -t
 ```
 
-![No device specified](images/4.01-no-device.png)
+![No device specified](./screenshots/4.01-no-device.png)
 
 ### Issue 1: Wrong device
 
@@ -98,7 +98,7 @@ I ran into an issue with this command because no device was specified. This lead
 sudo ir-keytable
 ```
 
-![Device list](images/4.02-device-list.png)
+![Device list](./screenshots/4.02-device-list.png)
 
 I was able to run the following command afterwards to begin capturing IR signals from the remote:
 
@@ -110,7 +110,7 @@ sudo ir-keytable -s rc1 -c -p nec,rc-5,rc-6,sony -t
 
 I ran into an issue here where I was unsuccessful with getting the IR signals from the remote. It turns out I had incorrectly connected the output of the TSOP38238 to Pin 17 of the Pi, which is a fixed 3.3V power pin, instead of Pin 11, which is GPIO 17. Running the `pinout` command shows both the physical pin numbers and GPIO (BCM) numbers.
 
-![Decoded signals](images/4.03-signals.png)
+![Decoded signals](./screenshots/4.03-signals.png)
 
 ### Raw capture
 
@@ -118,7 +118,7 @@ I ran into an issue here where I was unsuccessful with getting the IR signals fr
 sudo ir-ctl -r -d /dev/lirc0
 ```
 
-![Raw capture](images/4.04-raw-capture.png)
+![Raw capture](./screenshots/4.04-raw-capture.png)
 
 ### Captured Codes (Roku TV Remote)
 
@@ -186,7 +186,7 @@ sudo ir-ctl -f -d /dev/lirc0
 sudo ir-ctl -f -d /dev/lirc1
 ```
 
-![Devices](images/6.01-devices.png)
+![Devices](./screenshots/6.01-devices.png)
 
 > **Note:** Device numbers are not guaranteed to stay the same between boots or configuration changes, so always double check with `ir-ctl -f` instead of assuming. In my case, adding the transmitter made it `lirc0` and moved the receiver to `lirc1`.
 
@@ -204,8 +204,8 @@ Have the transmitter send an IR signal (in my case the known Up button on the Ro
 sudo ir-ctl -d /dev/lirc0 -S necx:0xeac719
 ```
 
-![Receiver enabled](images/6.02-en-rec.png)
-![Signal sent](images/6.03-send-sig.png)
+![Receiver enabled](./screenshots/6.02-en-rec.png)
+![Signal sent](./screenshots/6.03-send-sig.png)
 
 ## Step 7: Sweep Script
 
