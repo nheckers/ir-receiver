@@ -23,7 +23,7 @@ PROTOCOL = "necx"
 
 LED_CODES = {
     "power":       "0xeac745",
-    "reset":       "0xeac71c",
+    "white":       "0xeac71c",
     "brighter":    "0xeac70c",
     "dimmer":      "0xeac708",
     "red":         "0xeac742",

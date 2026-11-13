@@ -16,7 +16,7 @@ import ir_remote
 
 # Set this to your Roku TV's IP (Settings > Network > About) to control it over Wi-Fi.
 # Leave it as None to control the TV with IR instead.
-ROKU_IP = None
+ROKU_IP = "192.168.9.180"
 
 # Web button name -> Roku ECP key name
 ROKU_ECP_KEYS = {

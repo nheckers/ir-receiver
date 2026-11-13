@@ -25,7 +25,7 @@
     button:active { transform: scale(0.96); background: #333; }
     .power { background: #5a1a1a; border-color: #7a2a2a; }
     .swatch { height: 52px; border: 2px solid #333; }
-    .red { background: #d33; } .green { background: #2b2; } .blue { background: #36f; }
+    .red { background: #d33; } .green { background: #2b2; } .blue { background: #36f; } .white { background: #fff; }
     .dpad { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 56px); }
     .dpad button { padding: 0; font-size: 1.2rem; }
     .ok { background: #2a3a5a; }
@@ -46,7 +46,7 @@
   <h2>LED Strip</h2>
   <div class="grid g3">
     <button class="power" onclick="send('led','power')">Power</button>
-    <button onclick="send('led','reset')">Reset</button>
+    <button class="swatch white" onclick="send('led','white')"aria-label="White"></button>
     <button onclick="send('led','color_next')">Next Color</button>
     <button class="swatch red" onclick="send('led','red')" aria-label="Red"></button>
     <button class="swatch green" onclick="send('led','green')" aria-label="Green"></button>
