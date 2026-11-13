@@ -141,6 +141,38 @@
     }
     .pills { display: flex; gap: 14px; width: 100%; }
 
+    /* ---------- Apps tab ---------- */
+    .section-label {
+      align-self: flex-start; margin-bottom: -8px;
+      font-size: 0.7rem; letter-spacing: 2px; color: var(--muted);
+    }
+    .topbar { display: flex; align-items: center; gap: 14px; width: 100%; }
+    .topbar .title { align-self: center; }
+    .round.small { width: 44px; height: 44px; }
+    .round.small svg { width: 22px; height: 22px; }
+    .shortcut-btn {
+      width: 100%; height: 56px; border-radius: 28px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-size: 0.8rem; letter-spacing: 2px; color: var(--text);
+    }
+    .shortcut-btn svg { width: 22px; height: 22px; color: var(--accent); }
+    .inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+    .input {
+      height: 84px; border-radius: 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      font-size: 0.85rem;
+    }
+    .input svg { width: 24px; height: 24px; color: var(--muted); }
+    .input span { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .input small { font-size: 0.7rem; color: var(--muted); }
+    .apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+    .app {
+      aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .app img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
     /* ---------- Bottom tab bar ---------- */
     .tabs {
       position: fixed; left: 0; right: 0; bottom: 0;
@@ -190,6 +222,8 @@
       <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3"/><circle cx="16" cy="17" r="3"/><path d="M9 17V4h10v13M9 8h10"/></symbol>
       <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3l-4 4-4-4"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+      <symbol id="i-hdmi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h18v5l-2 3H5l-2-3z"/><path d="M8 11h8"/></symbol>
       <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 16a5 5 0 1 1 6 0 3.5 3.5 0 0 0-1 3 2 2 0 0 1-4 0 3.5 3.5 0 0 0-1-3"/><path d="M9.7 17h4.6"/></symbol>
     </defs>
   </svg>
@@ -224,6 +258,8 @@
       <button class="mid" onclick="send('tv','mute')">MUTE</button>
       <button onclick="send('tv','vol_up')" aria-label="Volume up"><svg><use href="#i-plus"/></svg></button>
     </div>
+
+    <button class="shortcut-btn" onclick="showRemote('shortcuts')"><svg><use href="#i-grid"/></svg>SHORTCUTS</button>
     {% endif %}
   </section>
 
@@ -261,6 +297,36 @@
     </div>
   </section>
 
+  <!-- ==================== SHORTCUTS (opened from the TV remote) ==================== -->
+  {% if tv_mode == "Wi-Fi" %}
+  <section class="remote" id="remote-shortcuts">
+    <div class="topbar">
+      <button class="round small" onclick="showRemote('tv')" aria-label="Back to TV remote"><svg><use href="#i-left"/></svg></button>
+      <div class="title">Shortcuts</div>
+    </div>
+
+    <div class="section-label">INPUTS</div>
+    <div class="inputs">
+      {% for label, device, app_id in roku_inputs %}
+      <button class="input" onclick="launch('{{ app_id }}', '{{ device }}')">
+        <svg><use href="#i-hdmi"/></svg>
+        <span>{{ label }}<small>{{ device }}</small></span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="section-label">APPS</div>
+    <div class="apps">
+      {% for label, app_id in roku_apps %}
+      <button class="app" onclick="launch('{{ app_id }}', '{{ label }}')" aria-label="{{ label }}">
+        <img src="/api/tv/icon/{{ app_id }}" alt="{{ label }}" loading="lazy"
+             onerror="this.replaceWith(document.createTextNode('{{ label }}'))">
+      </button>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ==================== TAB BAR ==================== -->
   <nav class="tabs">
     <button class="tab" data-remote="tv" onclick="showRemote('tv')"><svg><use href="#i-tv"/></svg>TV</button>
@@ -274,13 +340,17 @@
     function showRemote(name) {
       document.querySelectorAll('.remote').forEach(r =>
         r.classList.toggle('active', r.id === 'remote-' + name));
+      // The shortcuts page belongs to the TV remote, so keep the TV tab lit
+      const tab = name === 'shortcuts' ? 'tv' : name;
       document.querySelectorAll('.tab').forEach(t =>
-        t.classList.toggle('on', t.dataset.remote === name));
-      try { localStorage.setItem('lastRemote', name); } catch (e) {}
+        t.classList.toggle('on', t.dataset.remote === tab));
+      try { localStorage.setItem('lastRemote', tab); } catch (e) {}
+      window.scrollTo(0, 0);
     }
 
     let last = 'tv';
     try { last = localStorage.getItem('lastRemote') || 'tv'; } catch (e) {}
+    if (!document.getElementById('remote-' + last)) last = 'tv';
     showRemote(last);
 
     // ---------- Feedback ----------
@@ -305,6 +375,17 @@
         const res = await fetch(`/api/${device}/${button}`, { method: 'POST' });
         const data = await res.json();
         data.ok ? show('Sent: ' + data.sent) : show(data.error, true);
+      } catch (e) {
+        show('Can\'t reach the Pi', true);
+      }
+    }
+
+    async function launch(appId, label) {
+      buzz();
+      try {
+        const res = await fetch(`/api/tv/launch/${encodeURIComponent(appId)}`, { method: 'POST' });
+        const data = await res.json();
+        data.ok ? show('Opening ' + label) : show(data.error, true);
       } catch (e) {
         show('Can\'t reach the Pi', true);
       }
