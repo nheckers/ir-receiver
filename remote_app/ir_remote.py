@@ -30,8 +30,8 @@ LED_CODES = {
     "green":       "0xeac752",
     "blue":        "0xeac74a",
     "color_next":  "0xeac740",
-    "cycle":       "0xeac75e",
-    "cycle_light": "0xeac75a",
+    "prev_color":       "0xeac75e",
+    "next_color": "0xeac75a",
     "sound_mode":  "0xeac715",
     "oscillation": "0xeac719",
 }
