@@ -29,11 +29,11 @@ LED_CODES = {
     "red":         "0xeac742",
     "green":       "0xeac752",
     "blue":        "0xeac74a",
-    "color_next":  "0xeac740",
+    "dark_color":  "0xeac740",
     "prev_color":       "0xeac75e",
     "next_color": "0xeac75a",
     "sound_mode":  "0xeac715",
-    "oscillation": "0xeac719",
+    "bright_color": "0xeac719",
 }
 
 ROKU_CODES = {
