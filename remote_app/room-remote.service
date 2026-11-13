@@ -1,0 +1,10 @@
+[Unit]
+Description=Room Remote proxy (passes traffic to the app, exits when idle)
+Requires=room-remote-app.service
+After=room-remote-app.service
+
+[Service]
+# Wait up to 10 seconds for Flask to start listening before passing traffic to it
+ExecStartPre=/bin/bash -c 'for i in $(seq 50); do (echo > /dev/tcp/127.0.0.1/5001) 2>/dev/null && exit 0; sleep 0.2; done; exit 1'
+# Shut down after 15 minutes with no connections. Change this to whatever you like.
+ExecStart=/lib/systemd/systemd-socket-proxyd --exit-idle-time=15min 127.0.0.1:5001

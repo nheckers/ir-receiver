@@ -1,0 +1,9 @@
+[Unit]
+Description=Room Remote Flask app
+# Stops automatically when the proxy shuts down
+StopWhenUnneeded=yes
+
+[Service]
+User=nheckers
+WorkingDirectory=/home/nheckers/Desktop/ir_receiver/ir-receiver/remote_app
+ExecStart=/usr/bin/python3 app.py

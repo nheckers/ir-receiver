@@ -1,0 +1,8 @@
+[Unit]
+Description=Room Remote (listens on port 5000, starts the app on demand)
+
+[Socket]
+ListenStream=5000
+
+[Install]
+WantedBy=sockets.target
