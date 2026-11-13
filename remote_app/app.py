@@ -89,4 +89,4 @@ def tv(button):
 if __name__ == "__main__":
     # 0.0.0.0 makes it reachable from other devices on your network.
     # Don't port-forward this. Reach it from outside your home over WireGuard.
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="127.0.0.1", port=5001)
