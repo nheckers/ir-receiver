@@ -6,4 +6,5 @@ StopWhenUnneeded=yes
 [Service]
 User=nheckers
 WorkingDirectory=/home/nheckers/Desktop/ir_receiver/ir-receiver/remote_app
-ExecStart=/usr/bin/python3 app.py
+# Uses the Python inside the project's virtual environment, where requirements.txt is installed
+ExecStart=/home/nheckers/Desktop/ir_receiver/ir-receiver/remote_app/.venv/bin/python app.py
