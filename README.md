@@ -1,6 +1,43 @@
-# Raspberry Pi IR Receiver and Transmitter
+# Raspberry Pi IR and Wi-Fi Remote
 
-Capturing, decoding, and sending infrared remote signals with a Raspberry Pi. I started by capturing the codes from my Roku TV remote, then built a transmitter and used it to map out the codes for my LED strip after its remote stopped working. The end goal is to control both my TV and LED strip from my phone.
+Capturing, decoding, and sending infrared remote signals with a Raspberry Pi. I started by capturing the codes from my Roku TV remote, then built a transmitter and used it to map out the codes for my LED strip after its remote stopped working. The end result is a web app on my phone that controls both my TV and LED strip, running on the Pi only when I need it.
+
+| TV remote | Shortcuts | LED strip |
+|---|---|---|
+| ![TV remote](./screenshots/app-tv.png) | ![Shortcuts](./screenshots/app-shortcuts.png) | ![LED strip](./screenshots/app-lights.png) |
+
+## How It Works
+
+```
+Phone (web app)
+   │
+   ▼
+Port 5000: systemd socket  ──►  proxy  ──►  Flask (127.0.0.1:5001)
+                                               │
+                         ┌─────────────────────┴─────────────────────┐
+                         ▼                                           ▼
+              IR LED (ir_remote.py)                      Roku ECP API over Wi-Fi
+              LED strip, Settings, Sleep                 TV buttons, apps, inputs
+```
+
+> The Flask app, web UI, and systemd setup were written with help from Claude (an AI assistant). I defined the features and design, tested and debugged it on my hardware, and deployed it.
+
+## Repo Layout
+
+```
+README.md
+screenshots/        Screenshots and wiring photo
+scripts/
+  sweep.sh          Sweep script used to find the LED strip codes
+remote_app/
+  ir_remote.py      IR codes and sending (Step 8)
+  app.py            Flask web app (Step 9)
+  templates/
+    index.html      The remote's web page
+  static/           App icon and manifest for the home screen app
+  room-remote.socket, room-remote.service, room-remote-app.service
+                    systemd files (Step 10)
+```
 
 ## Parts
 
@@ -11,6 +48,7 @@ Capturing, decoding, and sending infrared remote signals with a Raspberry Pi. I 
 - 47 Ohm and 1 kOhm resistors
 - Breadboard and jumper wires
 - Roku TV remote (for testing)
+- Python 3 and Flask (`sudo apt install python3-flask`)
 
 ## Wiring
 
@@ -31,7 +69,7 @@ Capturing, decoding, and sending infrared remote signals with a Raspberry Pi. I 
 | Transistor emitter | Pin 9 (GND) |
 | 1 kOhm resistor → transistor base | Pin 12 (GPIO 18) |
 
-![Wiring](./screenshots/4.01-no-device.png)
+![Wiring](./screenshots/wiring.png)
 
 ## Step 1: Wiring to Raspberry Pi
 
@@ -237,8 +275,63 @@ Both the Up button and Netflix button on the Roku remote triggered a response on
 
 This shows that consumer IR has no authentication. Any device that can send the right command can control the device, which makes it vulnerable to simple replay attacks. Car key fobs and garage doors use rolling codes to prevent this.
 
+## Step 8: Python IR Module
+
+The `ir_remote.py` file stores the codes I discovered for the LED strip and Roku TV in dictionaries, so each code can be called by a name like "red" instead of its hex value. Because of the issue earlier where the transmitter and receiver swapped names after rebooting the Pi, the file includes a `find_transmitter` function that checks each lirc device with `ir-ctl -f` and uses the one that can send. The `send` function takes a device and button name, looks up the matching code, and passes it to `send_code`, which actually transmits it through `ir-ctl`. The web app calls `send` directly. The `main` function only runs when the file is started from the terminal, which lets me test codes without the web app (for example `python3 ir_remote.py led red`), and `print_buttons` lists every available button and code when I run `python3 ir_remote.py list`. For the LED strip, if we needed to update the code to include a new IR signal for another color, it is easily doable by simply adding the code into the `ir_remote.py` file and creating a button within the HTML file so it shows up on the user end. The actual server logic in `app.py` does not need to be configured.
+
+```bash
+python3 ir_remote.py list
+python3 ir_remote.py led red
+```
+
+## Step 9: Flask Web App
+
+The `app.py` file handles the communication between the user side of the HTML file and both the code logic found within the `ir_remote.py` file and the Roku's Wi-Fi API. `ROKU_ECP_KEYS` is used to map the web app's button names to the Roku API key names, while `ir_remote.py` uses the same button names for the IR signals. This is done so that when a button is pressed on the web application, the HTML file does not care how the signal is being sent, as we have linked both the IR signal and API key to the same name in the eyes of the HTML file. It is also set up where keys will only be sent to the Roku TV over Wi-Fi if they exist in the dictionary, avoiding sending random signals. Buttons the API does not have, like Settings and Sleep, are sent over IR instead. We have different paths for launching apps versus a physical keypress on a controller, as they function differently. App launching will only work via a Wi-Fi connection, while a keypress will operate both via IR and Wi-Fi. Only IDs that are already predefined in `ROKU_APPS` and `ROKU_INPUTS` will work. Flask will only accept connections from the Pi itself (127.0.0.1, port 5001), so other devices are not able to reach it directly. All outside traffic comes through the systemd socket on port 5000, which starts the app on demand and then passes requests to Flask.
+
+To control the TV over Wi-Fi, set `ROKU_IP` in `app.py` to the TV's IP address, and turn on **Settings > System > Advanced system settings > Control by mobile apps** on the TV. The app and input IDs for the shortcuts come from the TV itself:
+
+```bash
+curl http://<roku-ip>:8060/query/apps
+```
+
+## Step 10: Start on Demand with systemd
+
+I wanted to set up a way in which this process is not constantly running on the Pi and resources are saved when not being used. systemd is Linux's service manager and controls the programs running in the background, called "services." A `.service` file describes a program to run, and a `.socket` file describes which port to listen on. systemd actively listens on port 5000 for any traffic with `room-remote.socket`. The first connection will start a proxy, which starts Flask and waits until it is ready, queuing any traffic sent so nothing is lost, and when it is ready will finally pass the traffic over. A proxy acts as the middleman, passing traffic in between port 5000 and Flask on port 5001. After 15 minutes with no connections, the proxy will exit and Flask stops with it, while the socket continues to listen for the next time traffic is sent through. There are three files to complete these tasks: `room-remote.socket` allows systemd to hold port 5000 waiting for traffic, `room-remote.service` takes the connection from systemd, forwards it to Flask, and exits after 15 idle minutes, and finally `room-remote-app.service` is used to run Flask and stop it once the proxy is gone.
+
+The app service runs as my normal user instead of root, so that user needs access to the IR device. Check with `ls -l /dev/lirc0` which group owns it (on my Pi, `video`) and add the user to it:
+
+```bash
+sudo usermod -aG video <username>
+```
+
+Install and enable the socket:
+
+```bash
+sudo cp room-remote.socket room-remote.service room-remote-app.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now room-remote.socket
+```
+
+Check that it's working:
+
+```bash
+systemctl status room-remote.socket        # "listening"
+systemctl status room-remote-app.service   # inactive until the app is opened
+journalctl -u room-remote-app.service -u room-remote.service -n 50   # logs if something fails
+```
+
+## Security Decisions
+
+- **No port forwarding.** The web app has no login, so it is only reachable on my home network, and from outside through my WireGuard VPN.
+- **Flask is not exposed directly.** It only listens on 127.0.0.1:5001, and all traffic comes through the systemd socket.
+- **Allowlists.** Only TV keys in `ROKU_ECP_KEYS` and app IDs in `ROKU_APPS` and `ROKU_INPUTS` can be sent to the TV.
+- **Not running as root.** The app runs as a normal user that only has access to the IR device.
+
 ## Goals for the Future
 
-- [ ] Make this remote not just dependent on the Pi
-- [ ] Control the Roku TV over the network using Roku's ECP API
-- [ ] Build a web remote for the TV and LED strip, reachable from my phone over WireGuard VPN
+- [x] Control the Roku TV over the network using Roku's ECP API
+- [x] Build a web remote for the TV and LED strip
+- [x] Test reaching the remote from my phone over WireGuard VPN
+- [ ] Fall back to IR when the Roku can't be reached over Wi-Fi
+- [ ] Add a firewall rule so only my home network and WireGuard can reach port 5000
+- [ ] Make this remote not just dependent on the Pi (standalone ESP32 version)
