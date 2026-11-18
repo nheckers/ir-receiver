@@ -33,6 +33,7 @@ ROKU_ECP_KEYS = {
     "vol_up": "VolumeUp",
     "vol_down": "VolumeDown",
     "mute": "VolumeMute",
+    "settings": "Info",  # the Roku API's Info key does the same thing as the IR Settings button
 }
 
 # Shortcuts page. IDs come from: curl http://<roku-ip>:8060/query/apps
