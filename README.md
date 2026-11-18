@@ -48,7 +48,7 @@ remote_app/
 - 47 Ohm and 1 kOhm resistors
 - Breadboard and jumper wires
 - Roku TV remote (for testing)
-- Python 3 and Flask (`sudo apt install python3-flask`)
+- Python 3 (packages listed in `remote_app/requirements.txt`)
 
 ## Wiring
 
@@ -249,25 +249,30 @@ sudo ir-ctl -d /dev/lirc0 -S necx:0xeac719
 
 In this next part, I tested a variety of IR signals to see which would affect my LED light strip, in order to control it with my Raspberry Pi instead, since the controller had broken. The script goes through each possible signal and waits for my response to a prompt asking whether something happened that I will document, if I should resend the signal, or if nothing happened. The script is saved at [`scripts/sweep.sh`](scripts/sweep.sh).
 
-While running the script, I had to stop as I could not tell if a previous signal was interfering with new ones being sent. I updated the script to always send what I found to be a reset (`0xeac71c`) before it sent the new signal I was testing.
+While running the script, I had to stop as I could not tell if a previous signal was interfering with new ones being sent. I updated the script to always send what I found to be a reset (`0xeac71c`) before it sent the new signal I was testing. This code turns out to set the strip to solid white, which gives every test the same starting point. The script also finds the transmitter on its own with `ir-ctl -f`, since the lirc device numbers can change.
 
 ### LED Strip Codes
 
-| Code | Result |
-|---|---|
-| `0xeac708` | Dimmed the lights |
-| `0xeac70c` | Brightened the lights |
-| `0xeac715` | Changed oscillation / made reactive to noise |
-| `0xeac719` | Changed oscillation / color scheme |
-| `0xeac71c` | Reset |
-| `0xeac740` | Change color / color scheme |
-| `0xeac742` | Red color |
-| `0xeac745` | Power switch |
-| `0xeac747` | Not sure / has different results |
-| `0xeac74a` | Blue color |
-| `0xeac752` | Green color |
-| `0xeac75a` | Rotates through lighter colors |
-| `0xeac75e` | Rotates through colors |
+| Code | Result | Name in `ir_remote.py` |
+|---|---|---|
+| `0xeac708` | Dims the lights | `dimmer` |
+| `0xeac70c` | Brightens the lights | `brighter` |
+| `0xeac715` | Sound reactive mode | `sound_mode` |
+| `0xeac719` | Switches to brighter colors | `bright_color` |
+| `0xeac71c` | Solid white (used as a reset during the sweep) | `white` |
+| `0xeac740` | Switches to darker colors | `dark_color` |
+| `0xeac742` | Red | `red` |
+| `0xeac745` | Power on/off | `power` |
+| `0xeac747` | Not sure / has different results | none |
+| `0xeac74a` | Blue | `blue` |
+| `0xeac752` | Green | `green` |
+| `0xeac75a` | Next color | `next_color` |
+| `0xeac75e` | Previous color | `prev_color` |
+
+```bash
+sudo ./scripts/sweep.sh        # start from 0x00
+sudo ./scripts/sweep.sh 0x47   # resume from a specific code
+```
 
 ## Findings: Roku Remote Controls My LED Strip
 
@@ -286,7 +291,17 @@ python3 ir_remote.py led red
 
 ## Step 9: Flask Web App
 
-The `app.py` file handles the communication between the user side of the HTML file and both the code logic found within the `ir_remote.py` file and the Roku's Wi-Fi API. `ROKU_ECP_KEYS` is used to map the web app's button names to the Roku API key names, while `ir_remote.py` uses the same button names for the IR signals. This is done so that when a button is pressed on the web application, the HTML file does not care how the signal is being sent, as we have linked both the IR signal and API key to the same name in the eyes of the HTML file. It is also set up where keys will only be sent to the Roku TV over Wi-Fi if they exist in the dictionary, avoiding sending random signals. Buttons the API does not have, like Settings and Sleep, are sent over IR instead. We have different paths for launching apps versus a physical keypress on a controller, as they function differently. App launching will only work via a Wi-Fi connection, while a keypress will operate both via IR and Wi-Fi. Only IDs that are already predefined in `ROKU_APPS` and `ROKU_INPUTS` will work. Flask will only accept connections from the Pi itself (127.0.0.1, port 5001), so other devices are not able to reach it directly. All outside traffic comes through the systemd socket on port 5000, which starts the app on demand and then passes requests to Flask.
+The `app.py` file handles the communication between the user side of the HTML file and both the code logic found within the `ir_remote.py` file and the Roku's Wi-Fi API. `ROKU_ECP_KEYS` is used to map the web app's button names to the Roku API key names, while `ir_remote.py` uses the same button names for the IR signals. This is done so that when a button is pressed on the web application, the HTML file does not care how the signal is being sent, as we have linked both the IR signal and API key to the same name in the eyes of the HTML file. It is also set up where keys will only be sent to the Roku TV over Wi-Fi if they exist in the dictionary, avoiding sending random signals. Buttons the API does not have, like Sleep, are sent over IR instead. The Settings button goes over Wi-Fi using the API's `Info` key, which I found does the same thing as the IR Settings code. We have different paths for launching apps versus a physical keypress on a controller, as they function differently. App launching will only work via a Wi-Fi connection, while a keypress will operate both via IR and Wi-Fi. Only IDs that are already predefined in `ROKU_APPS` and `ROKU_INPUTS` will work. Flask will only accept connections from the Pi itself (127.0.0.1, port 5001), so other devices are not able to reach it directly. All outside traffic comes through the systemd socket on port 5000, which starts the app on demand and then passes requests to Flask.
+
+Set up a virtual environment on the Pi and install the requirements:
+
+```bash
+cd remote_app
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 app.py   # quick test, then Ctrl+C
+```
 
 To control the TV over Wi-Fi, set `ROKU_IP` in `app.py` to the TV's IP address, and turn on **Settings > System > Advanced system settings > Control by mobile apps** on the TV. The app and input IDs for the shortcuts come from the TV itself:
 
@@ -297,6 +312,8 @@ curl http://<roku-ip>:8060/query/apps
 ## Step 10: Start on Demand with systemd
 
 I wanted to set up a way in which this process is not constantly running on the Pi and resources are saved when not being used. systemd is Linux's service manager and controls the programs running in the background, called "services." A `.service` file describes a program to run, and a `.socket` file describes which port to listen on. systemd actively listens on port 5000 for any traffic with `room-remote.socket`. The first connection will start a proxy, which starts Flask and waits until it is ready, queuing any traffic sent so nothing is lost, and when it is ready will finally pass the traffic over. A proxy acts as the middleman, passing traffic in between port 5000 and Flask on port 5001. After 15 minutes with no connections, the proxy will exit and Flask stops with it, while the socket continues to listen for the next time traffic is sent through. There are three files to complete these tasks: `room-remote.socket` allows systemd to hold port 5000 waiting for traffic, `room-remote.service` takes the connection from systemd, forwards it to Flask, and exits after 15 idle minutes, and finally `room-remote-app.service` is used to run Flask and stop it once the proxy is gone.
+
+`room-remote-app.service` runs Flask with the Python inside `remote_app/.venv`, so the virtual environment from Step 9 has to exist first. Update the `User`, `WorkingDirectory`, and `ExecStart` paths in that file to match your own username and folder.
 
 The app service runs as my normal user instead of root, so that user needs access to the IR device. Check with `ls -l /dev/lirc0` which group owns it (on my Pi, `video`) and add the user to it:
 
