@@ -92,10 +92,10 @@ def led(button):
 @app.post("/api/tv/<button>")
 def tv(button):
     try:
-        if ROKU_IP:
-            key = ROKU_ECP_KEYS.get(button)
-            if key is None:
-                return jsonify(ok=False, error=f"Unknown TV button '{button}'"), 400
+        # Use Wi-Fi when it's set up and the Roku API has this button.
+        # Buttons the API doesn't have (like settings and sleep) go out over IR.
+        if ROKU_IP and button in ROKU_ECP_KEYS:
+            key = ROKU_ECP_KEYS[button]
             roku_post(f"keypress/{key}")
             return jsonify(ok=True, sent=f"tv {button} (ECP {key})")
         else:
